@@ -1,0 +1,86 @@
+alias: Delayed Start for Priority Thermostat Cooling
+description: >-
+  Version 2: When the non-priority zone is cooling, watch the temperature of the
+  priority zone. When the priority zone gets to within 0.5 degrees of the
+  setpoint, switch zones with a two-minute delay to prevent cycling the A/C
+  compressors unnecessarily.  Try setting the non-priority to idle.
+trigger:
+  - platform: state
+    entity_id:
+      - climate.bedroom
+      - climate.main_floor
+    attribute: hvac_action
+    to: cooling
+condition: []
+action:
+  - condition: template
+    value_template: >
+      {% set priority = states('input_select.thermostat_priority') %}
+
+      {% set priority_entity = 'climate.bedroom' if priority == 'Bedroom' else
+      'climate.main_floor' %}
+
+      {% set non_priority_entity = 'climate.main_floor' if priority == 'Bedroom'
+      else 'climate.bedroom' %}
+
+      {{ state_attr(non_priority_entity, 'hvac_action') == 'cooling' and
+      state_attr(priority_entity, 'hvac_action') != 'cooling'}}
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: >
+              {% set priority = states('input_select.thermostat_priority') %}
+
+              {% set priority_entity = 'climate.bedroom' if priority ==
+              'Bedroom' else 'climate.main_floor' %}
+
+              {% set priority_temp = state_attr(priority_entity,
+              'current_temperature') %}
+
+              {% set priority_target = state_attr(priority_entity,
+              'temperature') %}
+
+              {{ priority_temp > (priority_target - 0.5) }}
+        sequence:
+          - service: system_log.write
+            data:
+              message: >-
+                Priority zone is {{ priority_entity }} with current temperature
+                {{ priority_temp }} and target temperature {{ priority_target }}
+              level: info
+          - service: climate.turn_on
+            target:
+              entity_id: |
+                {% if is_state('input_select.thermostat_priority', 'Bedroom') %}
+                  climate.bedroom
+                {% else %}
+                  climate.main_floor
+                {% endif %}
+          - delay: "00:02:00"
+          - service: climate.set_hvac_mode
+            target:
+              entity_id: |
+                {% if is_state('input_select.thermostat_priority', 'Bedroom') %}
+                  climate.main_floor
+                {% else %}
+                  climate.bedroom
+                {% endif %}
+            data:
+              hvac_mode: "off"
+          - service: system_log.write
+            data:
+              message: Non-priority thermostat set to off.
+              level: info
+    default:
+      - delay: "00:00:30"
+      - service: system_log.write
+        data:
+          message: Conditions not met. Retriggering automation after 5 minutes.
+          level: info
+      - service: automation.trigger
+        target:
+          entity_id:
+            - automation.delayed_start_for_priority_thermostat_cooling_2
+        data:
+          skip_condition: true
+mode: restart

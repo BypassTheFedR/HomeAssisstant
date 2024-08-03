@@ -1,0 +1,38 @@
+alias: Hot Day Cooling Routine
+description: Automatically cools zones on hot days if enabled.
+trigger:
+  - platform: time
+    at: "05:00:00"
+condition:
+  - condition: state
+    entity_id: input_boolean.hot_day_cooling_enabled
+    state: "on"
+action:
+  - service: climate.set_temperature
+    target:
+      entity_id: climate.main_floor
+    data:
+      temperature: 72
+  - wait_template: "{{ state_attr('climate.main_floor', 'current_temperature') <= 72 }}"
+  - service: climate.set_temperature
+    target:
+      entity_id: climate.bedroom
+    data:
+      temperature: 72
+  - service: climate.set_preset_mode
+    target:
+      entity_id: climate.main_floor
+    data:
+        preset_mode: home
+  - wait_template: "{{ state_attr('climate.bedroom', 'current_temperature') <= 72 }}"
+  - service: climate.set_temperature
+    target:
+      entity_id: climate.main_floor
+    data:
+      temperature: 72
+  - service: climate.set_temperature
+    target:
+      entity_id: climate.bedroom
+    data:
+      temperature: 86
+mode: single

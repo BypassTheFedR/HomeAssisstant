@@ -1,0 +1,40 @@
+alias: Set Bedroom to priority at 8pm
+description: >-
+  At 8 pm daily, set the priority to the bedroom zone. The priority will remain 
+  on the bedroom until the bedroom temperature is less than the setpoint, at
+  which point the priority will switch back to the main floor.
+trigger:
+  - platform: time
+    at: "20:00:00"
+condition: []
+action:
+  - service: input_select.select_option
+    target:
+      entity_id: input_select.thermostat_priority
+    data:
+      option: Bedroom
+  - service: climate.set_preset_mode
+    target:
+      entity_id: climate.bedroom
+    data:
+        preset_mode: sleep
+  - service: system_log.write
+    data:
+      message: Priority is set to {{ states('input_select.thermostat_priority')}}
+      level: info
+  - wait_template: >
+      {% set bedroom_temp = state_attr('climate.bedroom', 'current_temperature')
+      %} {% set bedroom_target = state_attr('climate.bedroom', 'temperature') %}
+      {{ bedroom_temp < bedroom_target }}
+  - service: input_select.select_option
+    target:
+      entity_id: input_select.thermostat_priority
+    data:
+      option: Main Floor
+  - service: system_log.write
+    data:
+      message: >-
+        Priority switched back to {{ states('input_select.thermostat_priority')
+        }} after Bedroom temperature dropped below setpoint.
+      level: info
+mode: single
