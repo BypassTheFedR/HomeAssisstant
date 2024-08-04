@@ -13,6 +13,11 @@ action:
       entity_id: input_select.thermostat_priority
     data:
       option: Bedroom
+  - service: climate.set_hvac_mode
+    target:
+      entity_id: climate.bedroom
+    data:
+      hvac_mode: auto
   - service: climate.set_preset_mode
     target:
       entity_id: climate.bedroom
@@ -23,8 +28,8 @@ action:
       message: Priority is set to {{ states('input_select.thermostat_priority')}}
       level: info
   - wait_template: >
-      {% set bedroom_temp = state_attr('climate.bedroom', 'current_temperature')
-      %} {% set bedroom_target = state_attr('climate.bedroom', 'temperature') %}
+      {% set bedroom_temp = state_attr('climate.bedroom', 'current_temperature') %}
+      {% set bedroom_target = state_attr('climate.bedroom', 'temperature') %}
       {{ bedroom_temp < bedroom_target }}
   - service: input_select.select_option
     target:
